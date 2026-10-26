@@ -69,8 +69,19 @@ To change only the photos later, choose **2 Change photos**.
 With the Magic Remote: point at a tile and click to open it; press and hold
 for its options.
 
-To move an app in the dock: hold OK, choose **Move**, then ◀ ▶ and OK.
-Hidden apps wait at the end of All apps; hold OK on one to show it again.
+**Moving an app in the dock:** hold OK on it, choose **Move**, then ◀ ▶ to
+place it and OK.
+
+**Adding an app to the dock:** in All apps, hold OK on it and choose **Add to
+dock**, then ◀ ▶ to place it and OK.
+
+**Hiding an app:** hold OK on it and choose **Hide**. It leaves the dock and
+All apps.
+
+**Showing a hidden app again:** press ▼ for All apps and go to the very end:
+hidden apps wait there, dimmed, in a section called **Hidden**. Hold OK on the
+app and choose **Show again**. It is back in All apps; to have it in the dock
+as well, add it to the dock as above.
 
 ## Menu
 
