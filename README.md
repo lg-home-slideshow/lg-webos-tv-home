@@ -88,6 +88,10 @@ Hidden apps wait at the end of All apps; hold OK on one to show it again.
   the TV from standby shows TV Home at once.
 - Apps from the LG Content Store and the Homebrew Channel can be
   uninstalled; LG's own apps and the inputs can only be hidden.
+- Only one Home screen can take LG's Home's place at a time. Using
+  [Glasshouse](https://github.com/rorygallagher2024/glasshouse)'s Home?
+  Choose **Use LG Home** in its dashboard's Home tab first; that switches only
+  Glasshouse Home off. The setup checks for this.
 - Works together with
   [LG Home Slideshow](https://github.com/lg-home-slideshow/lg-home-slideshow):
   apps hidden there are hidden here too, and its slideshow is back whenever

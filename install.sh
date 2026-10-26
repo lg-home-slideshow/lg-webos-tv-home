@@ -34,6 +34,16 @@ esac
 [ -x /usr/bin/qml-runner ] || fail "the TV has no QML app runner (/usr/bin/qml-runner)"
 [ -d "$LG_HOME" ] || fail "LG's Home app is missing ($LG_HOME)"
 [ -f "$NEW/tv/tv-home.sh" ] || fail "the upload is incomplete"
+# Another Home replacement (Glasshouse, for one) in LG's Home's place: only
+# one can be the Home, and ours would take its mount for its own.
+if awk -v m="$LG_HOME" '$2 == m { f = 1 } END { exit !f }' /proc/mounts; then
+    cur=$(stat -c %d:%i "$LG_HOME" 2>/dev/null)
+    ours=""
+    for d in app app-qml; do
+        [ -d "$DEST/$d" ] && [ "$(stat -c %d:%i "$DEST/$d" 2>/dev/null)" = "$cur" ] && ours=1
+    done
+    [ -n "$ours" ] || fail "another Home screen (Glasshouse Home?) has taken LG's Home's place; switch it off first (Glasshouse: Use LG Home), then run this again"
+fi
 
 mkdir -p "$DEST" || fail "cannot create $DEST"
 
