@@ -1,0 +1,14 @@
+{
+  "id": "com.webos.app.home",
+  "version": "1.0.0",
+  "vendor": "TV Home",
+  "type": "qml",
+  "main": "qml/main.qml",
+  "title": "Home",
+  "icon": "icon.png",
+  "largeIcon": "icon.png",
+  "iconColor": "#000000",
+  "visible": false,
+  "disableBackHistoryAPI": true,
+  "appCategory": ["home"]
+}

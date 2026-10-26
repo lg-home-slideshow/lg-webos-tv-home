@@ -1,0 +1,12 @@
+# The TV needs LF; Windows scripts keep CRLF.
+*.sh    text eol=lf
+*.js    text eol=lf
+*.qml   text eol=lf
+*.json  text eol=lf
+*.html  text eol=lf
+*.ps1   text eol=crlf
+*.cmd   text eol=crlf
+*.md    text
+*.txt   text
+*.jpg   binary
+*.gif   binary

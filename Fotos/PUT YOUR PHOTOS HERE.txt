@@ -1,0 +1,2 @@
+Put the photos for TV Home's background here (JPG, PNG; with ffmpeg also HEIC, WebP and more).
+They are shown in file-name order, starting at a random one. Then run Start.cmd.

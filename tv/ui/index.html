@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TV Home</title>
+<!--
+  TV Home - an Apple-TV-style Home for an LG webOS 10 TV, inspired by
+  PearWebOS (github.com/Arnedeklerk/PearWebOS, MIT).
+
+  Served by server.js, which gives it the TV's apps, inputs and icons and
+  launches them. Opened as a file or with server.js --demo it shows a demo
+  list instead. Drawn at the TV's UI size (1920 x 1080), scaled to the window.
+  Remote: arrows, OK, Back. On a PC: Enter = OK, Esc / Backspace = Back,
+  hold Enter on a dock tile = move it (arrows, then Enter). ? = help.
+-->
+<style>
+:root {
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --glass: rgba(255, 255, 255, .13);
+  --glass-edge: rgba(255, 255, 255, .24);
+  --text: #fff;
+  --muted: rgba(255, 255, 255, .74);
+  --tile-w: 224px;
+  --tile-h: 134px;
+  --radius: 26px;
+}
+html, body {
+  margin: 0; height: 100%; background: #000; overflow: hidden; color: var(--text);
+  font-family: -apple-system, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+#stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+
+/* --- background: photos cross-fading, slowly drifting ----------------------- */
+.bg { position: absolute; inset: -3%; background: center / cover no-repeat; opacity: 0; transition: opacity 1.8s ease; }
+.bg.on { opacity: 1; animation: drift 40s linear forwards; }
+@keyframes drift { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.08) translate(-1%, -1%); } }
+.shade {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 60% at 0% 0%, rgba(0,0,0,.45), transparent 70%),
+    linear-gradient(180deg, rgba(0,0,0,.25) 0%, transparent 30%, transparent 52%, rgba(0,0,0,.6) 100%);
+}
+/* the focused app's colour, washed into the lower half */
+.tint { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .9s ease, background .9s ease; mix-blend-mode: soft-light; }
+
+/* --- top left: clock, greeting, date ---------------------------------------- */
+header { position: absolute; left: 112px; top: 84px; text-shadow: 0 2px 30px rgba(0,0,0,.35); transition: opacity .5s ease; }
+.clock { font-size: 176px; font-weight: 200; letter-spacing: -5px; line-height: 1; font-variant-numeric: tabular-nums; }
+.greet { font-size: 46px; font-weight: 600; margin-top: 22px; }
+.date { font-size: 30px; font-weight: 500; color: var(--muted); margin-top: 8px; }
+
+/* --- dock --------------------------------------------------------------------- */
+.dock-wrap { position: absolute; left: 0; right: 0; bottom: 58px; display: flex; flex-direction: column; align-items: center; transition: transform .55s var(--ease), opacity .4s ease; }
+.dock {
+  display: flex; gap: 44px; padding: 36px 46px 78px; border-radius: 48px; perspective: 900px;
+  background: var(--glass); border: 1px solid var(--glass-edge);
+  -webkit-backdrop-filter: blur(42px) saturate(170%); backdrop-filter: blur(42px) saturate(170%);
+  box-shadow: 0 30px 90px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.18);
+}
+.more { margin-top: 18px; font-size: 22px; font-weight: 600; color: var(--muted); letter-spacing: .3px; display: flex; align-items: center; gap: 10px; }
+.more svg { width: 26px; height: 26px; }
+.drawer-open .dock-wrap { transform: translateY(70px); opacity: 0; }
+.drawer-open header { opacity: 0; }
+
+/* --- tiles -------------------------------------------------------------------- */
+.tile { position: relative; width: var(--tile-w); height: var(--tile-h); border-radius: var(--radius); flex: none; cursor: pointer;
+  transform-style: preserve-3d; transition: transform .38s var(--ease); --tilt: 0deg; }
+.face { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; display: grid; place-items: center;
+  box-shadow: 0 8px 22px rgba(0,0,0,.28); transition: box-shadow .38s var(--ease); }
+.face svg { width: 100%; height: 100%; display: block; }
+.face img { max-width: 64%; max-height: 74%; object-fit: contain; display: block; }
+.face.fill img { max-width: 100%; max-height: 100%; height: 100%; }
+.face .initial { font-size: 54px; font-weight: 700; color: rgba(255,255,255,.92); }
+.face::after { /* the light that sweeps across a focused tile */
+  content: ""; position: absolute; inset: -40%; pointer-events: none; opacity: 0;
+  background: linear-gradient(115deg, transparent 38%, rgba(255,255,255,.34) 50%, transparent 62%);
+  transform: translateX(-60%);
+}
+.label { position: absolute; left: 50%; top: 100%; margin-top: 22px; transform: translateX(-50%); white-space: nowrap;
+  font-size: 25px; font-weight: 600; opacity: 0; transition: opacity .25s ease; text-shadow: 0 2px 12px rgba(0,0,0,.45); }
+.tile.focus { transform: translateY(-8px) scale(1.08) rotateY(var(--tilt)); z-index: 3; }
+.tile.focus .face { box-shadow: 0 18px 36px rgba(0,0,0,.5), 0 0 0 3px rgba(255,255,255,.9); }
+.tile.focus .face::after { opacity: 1; animation: sheen 1.1s .15s var(--ease) both; }
+.tile.focus .label { opacity: 1; }
+@keyframes sheen { from { transform: translateX(-60%); } to { transform: translateX(60%); } }
+.tile.lifted { animation: wiggle .32s ease-in-out infinite alternate; }
+.tile.lifted .face { box-shadow: 0 34px 60px rgba(0,0,0,.6), 0 0 0 4px #ffd34d; }
+@keyframes wiggle { from { transform: translateY(-12px) scale(1.1) rotate(-1.4deg); } to { transform: translateY(-12px) scale(1.1) rotate(1.4deg); } }
+
+/* --- drawer: all apps and inputs --------------------------------------------- */
+.drawer { --tile-w: 204px; --tile-h: 122px; --radius: 22px;
+  position: absolute; inset: 0; padding: 96px 112px 0; box-sizing: border-box; transform: translateY(100%);
+  transition: transform .6s var(--ease); background: rgba(12,12,16,.5);
+  -webkit-backdrop-filter: blur(60px) saturate(150%); backdrop-filter: blur(60px) saturate(150%); }
+.drawer-open .drawer { transform: none; }
+.drawer h2 { margin: 0 0 34px; font-size: 30px; font-weight: 600; color: var(--muted); }
+.drawer h2 + .grid { margin-bottom: 84px; }
+.drawer { overflow: hidden; }
+.drawer-scroll { transition: transform .45s var(--ease); }
+.hidden-grid .face { opacity: .45; filter: grayscale(.6); }
+.hidden-grid .tile.focus .face { opacity: .9; filter: none; }
+
+/* --- options menu (hold OK) --------------------------------------------------- */
+.menu-back { position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; background: rgba(0,0,0,.35);
+  opacity: 0; pointer-events: none; transition: opacity .25s ease; }
+.menu-back.show { opacity: 1; pointer-events: auto; }
+.menu { width: 640px; padding: 34px; border-radius: 34px; background: rgba(28,28,34,.72); border: 1px solid var(--glass-edge);
+  -webkit-backdrop-filter: blur(50px) saturate(160%); backdrop-filter: blur(50px) saturate(160%);
+  box-shadow: 0 40px 120px rgba(0,0,0,.55); transform: scale(.94); transition: transform .3s var(--ease); }
+.menu-back.show .menu { transform: none; }
+.menu-head { display: flex; align-items: center; gap: 26px; margin-bottom: 26px; }
+.menu-icon { width: 150px; height: 90px; border-radius: 18px; overflow: hidden; flex: none; position: relative; }
+.menu-icon .face { box-shadow: none; }
+.menu-title { font-size: 34px; font-weight: 700; }
+.menu-sub { font-size: 21px; color: var(--muted); margin-top: 6px; line-height: 1.35; }
+.menu-item { font-size: 28px; font-weight: 600; padding: 18px 26px; border-radius: 18px; margin-top: 6px; cursor: pointer;
+  transition: background .18s ease, color .18s ease, transform .18s var(--ease); }
+.menu-item.danger { color: #ff6b6b; }
+.menu-item.focus { background: #fff; color: #111; transform: scale(1.03); }
+.menu-item.danger.focus { background: #ff453a; color: #fff; }
+.grid { display: grid; grid-template-columns: repeat(7, var(--tile-w)); gap: 70px 42px; perspective: 900px; }
+
+/* --- toast, help -------------------------------------------------------------- */
+.toast { position: absolute; left: 50%; top: 54px; transform: translate(-50%, -30px); opacity: 0; padding: 18px 34px;
+  border-radius: 999px; background: rgba(20,20,24,.62); border: 1px solid var(--glass-edge); font-size: 26px; font-weight: 600;
+  -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px); transition: opacity .3s ease, transform .4s var(--ease);
+  display: flex; align-items: center; gap: 18px; z-index: 10; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast small { font-size: 18px; color: var(--muted); font-weight: 500; font-family: ui-monospace, Consolas, monospace; }
+.spin { width: 26px; height: 26px; border-radius: 50%; border: 3px solid rgba(255,255,255,.3); border-top-color: #fff; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.help { position: absolute; right: 60px; top: 60px; padding: 24px 30px; border-radius: 22px; font-size: 20px; line-height: 1.7;
+  background: rgba(20,20,24,.6); border: 1px solid var(--glass-edge); -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px);
+  opacity: 0; transition: opacity .4s ease; z-index: 9; }
+.help.show { opacity: 1; }
+.help b { display: inline-block; min-width: 260px; font-weight: 600; }
+
+/* --- TV mode (body.lite): the same look without what TV graphics chips are
+   slow at: backdrop blur, a background that moves under it all the time,
+   blend modes and animated shadows. Measured on a webOS 10 TV: full ~16 fps. */
+.lite .dock { -webkit-backdrop-filter: none; backdrop-filter: none;
+  background: linear-gradient(180deg, rgba(58,58,66,.62), rgba(28,28,34,.72)); }
+.lite .drawer { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(10,10,14,.9); }
+.lite .menu, .lite .toast, .lite .help { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(26,26,32,.96); }
+.lite .bg.on { animation: none; }
+.lite .tint { mix-blend-mode: normal; }
+.lite .tile { will-change: transform; }
+.lite .face { transition: none; }
+.lite .tile.focus { transform: translateY(-8px) scale(1.08); }      /* no 3D tilt */
+.lite .tile.focus .face::after { animation: none; opacity: 0; }       /* no light sweep */
+.lite .tint { display: none; }          /* a full-screen repaint at every move */
+.lite .drawer { will-change: transform; }   /* drawn once, ready to slide in */
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="bg" id="bgA"></div>
+  <div class="bg" id="bgB"></div>
+  <div class="tint" id="tint"></div>
+  <div class="shade"></div>
+
+  <header>
+    <div class="clock" id="clock">--:--</div>
+    <div class="greet" id="greet"></div>
+    <div class="date" id="date"></div>
+  </header>
+
+  <div class="dock-wrap">
+    <div class="dock" id="dock"></div>
+    <div class="more"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>All apps</div>
+  </div>
+
+  <div class="drawer" id="drawer"><div class="drawer-scroll" id="drawerScroll">
+    <h2>Apps</h2>
+    <div class="grid" id="gridApps"></div>
+    <h2 id="inputsTitle">Inputs</h2>
+    <div class="grid" id="gridInputs"></div>
+    <h2 id="hiddenTitle">Hidden</h2>
+    <div class="grid hidden-grid" id="gridHidden"></div>
+  </div></div>
+
+  <div class="menu-back" id="menuBack">
+    <div class="menu" id="menu">
+      <div class="menu-head"><div class="menu-icon" id="menuIcon"></div><div><div class="menu-title" id="menuTitle"></div><div class="menu-sub" id="menuSub"></div></div></div>
+      <div class="menu-list" id="menuList"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"><div class="spin"></div><span id="toastText"></span><small id="toastId"></small></div>
+  <div class="help" id="help">
+    <div><b>&larr; &rarr; &uarr; &darr;</b>move</div>
+    <div><b>Enter</b>open (OK)</div>
+    <div><b>&darr; on the dock</b>all apps</div>
+    <div><b>Esc / Backspace</b>back</div>
+    <div><b>hold Enter</b>options: move, dock, hide, uninstall</div>
+    <div><b>?</b>this help</div>
+  </div>
+</div>
+
+<script src="demo.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

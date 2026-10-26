@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Home</title>
+<style>
+html, body { margin: 0; height: 100%; background: #000; color: #8a8a90; overflow: hidden; cursor: none;
+  font-family: -apple-system, "Segoe UI", system-ui, sans-serif; }
+#msg { position: absolute; left: 0; right: 0; top: 58%; text-align: center; font-size: 2.2vh; opacity: 0; transition: opacity .4s; }
+#msg.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="msg"></div>
+<script>
+/*
+ * TV Home's app, which the TV opens as its Home: tv-home.sh mounts this
+ * folder over LG's Home under its id. The Home screen itself is served by
+ * server.js on this TV; this page opens it as soon as the server answers.
+ * Being LG's Home's app, it cannot open LG's Home itself: if the server stays
+ * silent, tv-home.sh's watchdog gives LG's Home its place back.
+ */
+(function () {
+  var URL = 'http://127.0.0.1:8650/ui/index.html';
+  var started = Date.now(), done = false;
+  function probe() {
+    if (done) return;
+    var x = new XMLHttpRequest();
+    x.open('GET', 'http://127.0.0.1:8650/api/heartbeat?t=' + Date.now(), true);
+    x.timeout = 1500;
+    x.onload = function () {
+      if (x.status >= 200 && x.status < 400) { done = true; location.replace(URL + '?t=' + Date.now()); }
+      else retry();
+    };
+    x.onerror = x.ontimeout = retry;
+    x.send();
+  }
+  function retry() {
+    if (Date.now() - started > 15000) {
+      var m = document.getElementById('msg');
+      m.textContent = 'TV Home is not answering yet. LG’s Home comes back if it stays silent.';
+      m.className = 'show';
+    }
+    setTimeout(probe, 600);
+  }
+  probe();
+})();
+</script>
+</body>
+</html>
